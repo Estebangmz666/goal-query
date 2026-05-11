@@ -6,20 +6,28 @@ try:
     from src.domain.exceptions.validation_error import ValidationError
     from src.dto.simulation_models import MatchSimulationResultDTO
     from src.repositories.match_repository import MatchRepository
+    from src.services.standings_service import StandingsService
 except ModuleNotFoundError:
     from domain.exceptions.validation_error import ValidationError
     from dto.simulation_models import MatchSimulationResultDTO
     from repositories.match_repository import MatchRepository
+    from services.standings_service import StandingsService
 
 
 class SimulationService:
-    def __init__(self, match_repository: MatchRepository) -> None:
+    def __init__(
+        self,
+        match_repository: MatchRepository,
+        standings_service: StandingsService | None = None,
+    ) -> None:
         self._match_repository = match_repository
+        self._standings_service = standings_service
 
     def simulate_match(
         self,
         match_id: int,
         random_seed: int | None = None,
+        update_standings: bool = True,
     ) -> MatchSimulationResultDTO:
         if match_id <= 0:
             raise ValidationError("Match id must be greater than zero.")
@@ -43,6 +51,10 @@ class SimulationService:
             away_goals=away_goals,
             played_at=played_at,
         )
+
+        if update_standings and self._standings_service:
+            self._standings_service.calculate_standings_after_match(match_id)
+
         return MatchSimulationResultDTO(
             match_id=match.id,
             home_team_name=match.home_team_name,
@@ -51,6 +63,26 @@ class SimulationService:
             away_goals=away_goals,
             played_at=played_at,
         )
+
+    def simulate_all_group_matches(self, random_seed: int | None = None) -> list[MatchSimulationResultDTO]:
+        """Simulate all group stage matches that haven't been played yet."""
+        from src.domain.enums.match_phase import MatchPhase
+
+        matches = self._match_repository.find_by_phase(MatchPhase.GROUP_STAGE.value)
+        results = []
+
+        generator = random.Random(random_seed)
+
+        for match in matches:
+            if not self._match_repository.has_result(match["id"]):
+                result = self.simulate_match(
+                    match_id=match["id"],
+                    random_seed=generator.randint(0, 999999) if random_seed else None,
+                    update_standings=True,
+                )
+                results.append(result)
+
+        return results
 
     @staticmethod
     def _calculate_expected_goals(

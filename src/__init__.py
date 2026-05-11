@@ -1,0 +1,1 @@
+"""GoalQuery source package."""

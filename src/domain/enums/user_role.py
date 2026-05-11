@@ -1,0 +1,7 @@
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    ADMINISTRATOR = "ADMINISTRATOR"
+    TRADITIONAL_USER = "TRADITIONAL_USER"
+    SPORADIC_USER = "SPORADIC_USER"

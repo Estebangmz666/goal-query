@@ -1,0 +1,5 @@
+IF DB_ID(N'GoalQuery') IS NULL
+BEGIN
+    CREATE DATABASE GoalQuery;
+END;
+GO
